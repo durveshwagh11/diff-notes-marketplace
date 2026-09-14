@@ -6,7 +6,7 @@ comments on specific lines, and hand those comments back to the same Claude Code
 ## Install
 
 ```
-/plugin marketplace add YOUR_GITHUB_USERNAME/diff-notes-marketplace
+/plugin marketplace add https://github.com/durveshwagh11/diff-notes-marketplace
 /plugin install diff-notes@durvesh-plugins
 ```
 
@@ -29,13 +29,3 @@ Comments are also written to `.claude/diff-notes/comments.json` (add that folder
 ## Requirements
 
 Node 18+ and git. No npm dependencies.
-
-## Develop locally
-
-```
-/plugin marketplace add ./diff-notes-marketplace
-/plugin install diff-notes@durvesh-plugins
-/reload-plugins
-```
-
-Validate before pushing: `claude plugin validate .`
