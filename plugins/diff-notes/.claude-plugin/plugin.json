@@ -1,0 +1,10 @@
+{
+  "name": "diff-notes",
+  "description": "Review Claude's diff in the browser with inline comments and send them back into the session",
+  "version": "0.1.0",
+  "author": {
+    "name": "Durvesh Wagh"
+  },
+  "license": "MIT",
+  "keywords": ["review", "diff", "feedback"]
+}

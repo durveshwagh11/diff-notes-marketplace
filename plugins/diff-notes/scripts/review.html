@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>diff-notes</title>
+<style>
+  :root {
+    --bg: #fbfbf9; --ink: #1e1f1c; --muted: #6f7268; --rule: #e2e2dc;
+    --add: #e6f4e8; --add-ink: #1f6b33; --del: #fbe7e6; --del-ink: #9a2f2a;
+    --note: #fff5cc; --note-ink: #5b4a00; --accent: #2456d9;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16171a; --ink: #e8e8e4; --muted: #8b8e86; --rule: #2c2e33;
+      --add: #16301c; --add-ink: #7fd191; --del: #3a1c1b; --del-ink: #f0958f;
+      --note: #3b3410; --note-ink: #ffe38a; --accent: #7aa2ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; display: flex; align-items: baseline; gap: 16px; padding: 12px 20px; background: var(--bg); border-bottom: 1px solid var(--rule); }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; }
+  header .meta { color: var(--muted); }
+  header .spacer { flex: 1; }
+  button.primary { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px 20px 80px; }
+  p.hint { color: var(--muted); margin: 0 0 16px; }
+  .file { border: 1px solid var(--rule); border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+  .file > .path { padding: 8px 12px; font: 13px var(--mono); border-bottom: 1px solid var(--rule); display: flex; gap: 10px; }
+  .file > .path .count { color: var(--muted); margin-left: auto; font-family: system-ui, sans-serif; }
+  table { width: 100%; border-collapse: collapse; font: 12.5px/1.6 var(--mono); }
+  td { padding: 0 8px; vertical-align: top; white-space: pre-wrap; word-break: break-all; }
+  td.n { width: 44px; text-align: right; color: var(--muted); user-select: none; }
+  tr.add td { background: var(--add); } tr.add td.n { color: var(--add-ink); }
+  tr.del td { background: var(--del); } tr.del td.n { color: var(--del-ink); }
+  tr.hunk td { color: var(--muted); background: transparent; padding: 4px 8px; border-top: 1px solid var(--rule); }
+  tr.line:hover td.code { outline: 1px solid var(--accent); outline-offset: -1px; cursor: pointer; }
+  tr.line.has-note td.n { border-left: 3px solid var(--note-ink); }
+  tr.note td { padding: 8px 8px 8px 52px; background: var(--note); color: var(--note-ink); font: 13px system-ui, sans-serif; }
+  .note textarea { width: 100%; min-height: 64px; font: inherit; padding: 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink); resize: vertical; }
+  .note .row { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
+  .note button { font: inherit; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--rule); background: var(--bg); color: var(--ink); cursor: pointer; }
+  .note .saved { white-space: pre-wrap; }
+  .note .saved + .row { margin-top: 8px; }
+  kbd { font: 11px var(--mono); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>diff-notes</h1>
+  <span class="meta" id="meta"></span>
+  <span class="spacer"></span>
+  <span class="meta" id="tally">0 comments</span>
+  <button class="primary" id="send">Send to Claude</button>
+</header>
+<main>
+  <p class="hint">Click any line to add a note. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> saves a note. When you're done, send everything back to the Claude Code session.</p>
+  <div id="files"></div>
+</main>
+<script>
+const DATA = __DATA__;
+const notes = new Map(); // key -> {path,line,code,text}
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+document.getElementById("meta").textContent =
+  `${DATA.files.length} file${DATA.files.length === 1 ? "" : "s"} changed · vs ${DATA.base}`;
+
+function tally() {
+  document.getElementById("tally").textContent = `${notes.size} comment${notes.size === 1 ? "" : "s"}`;
+}
+
+function renderFiles() {
+  const root = document.getElementById("files");
+  for (const f of DATA.files) {
+    const box = document.createElement("div"); box.className = "file";
+    const adds = f.hunks.flatMap(h => h.lines).filter(l => l.t === "add").length;
+    const dels = f.hunks.flatMap(h => h.lines).filter(l => l.t === "del").length;
+    box.innerHTML = `<div class="path"><span>${esc(f.path)}</span><span class="count">+${adds} −${dels}</span></div>`;
+    const table = document.createElement("table");
+    for (const h of f.hunks) {
+      table.insertAdjacentHTML("beforeend", `<tr class="hunk"><td colspan="3">${esc(h.header)}</td></tr>`);
+      for (const l of h.lines) {
+        const tr = document.createElement("tr");
+        tr.className = `line ${l.t}`;
+        // Comments attach to the new-side line; deletions attach to the nearest new line.
+        tr.dataset.path = f.path;
+        tr.dataset.line = l.n ?? l.o;
+        tr.dataset.side = l.t === "del" ? "old" : "new";
+        tr.innerHTML = `<td class="n">${l.o ?? ""}</td><td class="n">${l.n ?? ""}</td><td class="code">${esc(l.text)}</td>`;
+        tr.addEventListener("click", () => openNote(tr, l.text));
+        table.appendChild(tr);
+      }
+    }
+    box.appendChild(table);
+    root.appendChild(box);
+  }
+}
+
+function keyFor(tr) { return `${tr.dataset.path}:${tr.dataset.side}:${tr.dataset.line}`; }
+
+function openNote(tr, code) {
+  if (tr.nextElementSibling?.classList.contains("note")) return;
+  const key = keyFor(tr);
+  const existing = notes.get(key);
+  const row = document.createElement("tr"); row.className = "note";
+  row.innerHTML = `<td colspan="3">
+    <textarea placeholder="What should change here, or what's unclear?">${existing ? esc(existing.text) : ""}</textarea>
+    <div class="row">
+      <button class="save">Save note</button>
+      <button class="cancel">Cancel</button>
+      ${existing ? '<button class="remove">Remove</button>' : ""}
+    </div></td>`;
+  tr.after(row);
+  const ta = row.querySelector("textarea"); ta.focus();
+  const close = () => row.remove();
+  const save = () => {
+    const text = ta.value.trim();
+    if (!text) return close();
+    const line = tr.dataset.side === "old" ? `${tr.dataset.line} (deleted line)` : tr.dataset.line;
+    notes.set(key, { path: tr.dataset.path, line, code, text });
+    tr.classList.add("has-note");
+    close(); tally();
+  };
+  row.querySelector(".save").onclick = save;
+  row.querySelector(".cancel").onclick = close;
+  row.querySelector(".remove")?.addEventListener("click", () => { notes.delete(key); tr.classList.remove("has-note"); close(); tally(); });
+  ta.addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) save(); if (e.key === "Escape") close(); });
+}
+
+document.getElementById("send").onclick = async () => {
+  const btn = document.getElementById("send");
+  btn.disabled = true; btn.textContent = "Sending…";
+  await fetch("/done", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify([...notes.values()]) });
+  document.body.innerHTML = `<main><h1>Sent</h1><p class="hint">${notes.size} comment${notes.size === 1 ? "" : "s"} handed to Claude. You can close this tab.</p></main>`;
+};
+
+renderFiles();
+</script>
+</body>
+</html>
