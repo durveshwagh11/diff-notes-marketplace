@@ -6,7 +6,7 @@ comments on specific lines, and hand those comments back to the same Claude Code
 ## Install
 
 ```
-/plugin marketplace add https://github.com/durveshwagh11/diff-notes-marketplace
+/plugin marketplace add durveshwagh11/diff-notes-marketplace
 /plugin install diff-notes@durvesh-plugins
 ```
 
