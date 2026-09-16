@@ -96,7 +96,7 @@ const server = http.createServer((req, res) => {
       else {
         console.log(`${comments.length} comment(s) from the user:\n`);
         for (const c of comments) {
-          const code = c.code.trim().slice(0, 80);
+          const code = c.code.trim().replace(/\s*\n\s*/g, " ⏎ ").slice(0, 120);
           console.log(`- ${c.path}:${c.line} (on \`${code}\`) — ${c.text.replace(/\n+/g, " ")}`);
         }
       }

@@ -36,6 +36,10 @@
   tr.del td { background: var(--del); } tr.del td.n { color: var(--del-ink); }
   tr.hunk td { color: var(--muted); background: transparent; padding: 4px 8px; border-top: 1px solid var(--rule); }
   tr.line:hover td.code { outline: 1px solid var(--accent); outline-offset: -1px; cursor: pointer; }
+  tr.line.sel td { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  #menu { position: fixed; z-index: 10; min-width: 180px; padding: 4px; background: var(--bg); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+  #menu button { display: block; width: 100%; padding: 6px 10px; border: 0; border-radius: 5px; background: none; color: var(--ink); font: 13px system-ui, sans-serif; text-align: left; cursor: pointer; }
+  #menu button:hover { background: var(--accent); color: #fff; }
   tr.line.has-note td.n { border-left: 3px solid var(--note-ink); }
   tr.note td { padding: 8px 8px 8px 52px; background: var(--note); color: var(--note-ink); font: 13px system-ui, sans-serif; }
   .note textarea { width: 100%; min-height: 64px; font: inherit; padding: 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink); resize: vertical; }
@@ -55,7 +59,7 @@
   <button class="primary" id="send">Send to Claude</button>
 </header>
 <main>
-  <p class="hint">Click any line to add a note. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> saves a note. When you're done, send everything back to the Claude Code session.</p>
+  <p class="hint">Click any line to add a note, <kbd>Shift</kbd>+click to select a range, right-click for more. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> saves a note. When you're done, send everything back to the Claude Code session.</p>
   <div id="files"></div>
 </main>
 <script>
@@ -88,7 +92,15 @@ function renderFiles() {
         tr.dataset.line = l.n ?? l.o;
         tr.dataset.side = l.t === "del" ? "old" : "new";
         tr.innerHTML = `<td class="n">${l.o ?? ""}</td><td class="n">${l.n ?? ""}</td><td class="code">${esc(l.text)}</td>`;
-        tr.addEventListener("click", () => openNote(tr, l.text));
+        tr.addEventListener("click", e => {
+          if (e.shiftKey) return setSel(rangeTo(tr));
+          anchor = tr; setSel([tr]); openNote([tr]);
+        });
+        tr.addEventListener("contextmenu", e => {
+          e.preventDefault();
+          if (!selRows.includes(tr)) { anchor = tr; setSel([tr]); }
+          openMenu(e.clientX, e.clientY, selRows);
+        });
         table.appendChild(tr);
       }
     }
@@ -97,11 +109,57 @@ function renderFiles() {
   }
 }
 
-function keyFor(tr) { return `${tr.dataset.path}:${tr.dataset.side}:${tr.dataset.line}`; }
+let anchor = null, selRows = [];
 
-function openNote(tr, code) {
-  if (tr.nextElementSibling?.classList.contains("note")) return;
-  const key = keyFor(tr);
+function setSel(rows) {
+  for (const tr of selRows) tr.classList.remove("sel");
+  selRows = rows;
+  for (const tr of rows) tr.classList.add("sel");
+}
+
+// Shift-click extends from the anchor, but only inside the same file's table.
+function rangeTo(tr) {
+  const table = tr.closest("table");
+  if (!anchor || anchor.closest("table") !== table) return [tr];
+  const rows = [...table.querySelectorAll("tr.line")];
+  const a = rows.indexOf(anchor), b = rows.indexOf(tr);
+  return rows.slice(Math.min(a, b), Math.max(a, b) + 1);
+}
+
+const codeOf = rows => rows.map(tr => tr.querySelector("td.code").textContent).join("\n");
+const lineOf = tr => tr.dataset.side === "old" ? `${tr.dataset.line} (deleted line)` : tr.dataset.line;
+const spanOf = rows => rows.length === 1 ? lineOf(rows[0]) : `${rows[0].dataset.line}-${rows.at(-1).dataset.line}`;
+function keyFor(rows) { return `${rows[0].dataset.path}:${rows[0].dataset.side}:${spanOf(rows)}`; }
+
+function closeMenu() { document.getElementById("menu")?.remove(); }
+
+function openMenu(x, y, rows) {
+  closeMenu();
+  const m = document.createElement("div");
+  m.id = "menu";
+  m.innerHTML = `
+    <button data-a="note">${notes.has(keyFor(rows)) ? "Edit" : "Add"} note${rows.length > 1 ? ` (${rows.length} lines)` : ""}</button>
+    <button data-a="ref">Copy ref</button>
+    <button data-a="lines">Copy lines</button>`;
+  document.body.appendChild(m);
+  m.style.left = Math.min(x, innerWidth - m.offsetWidth - 8) + "px";
+  m.style.top = Math.min(y, innerHeight - m.offsetHeight - 8) + "px";
+  m.onclick = e => {
+    const a = e.target.closest("button")?.dataset.a;
+    closeMenu();
+    if (a === "note") openNote(rows);
+    else if (a === "ref") navigator.clipboard.writeText(`${rows[0].dataset.path}:${spanOf(rows)}`);
+    else if (a === "lines") navigator.clipboard.writeText(codeOf(rows));
+  };
+}
+
+addEventListener("click", e => { if (!e.target.closest("#menu")) closeMenu(); });
+addEventListener("keydown", e => { if (e.key === "Escape") closeMenu(); });
+
+function openNote(rows) {
+  const last = rows.at(-1);
+  if (last.nextElementSibling?.classList.contains("note")) return;
+  const key = keyFor(rows);
   const existing = notes.get(key);
   const row = document.createElement("tr"); row.className = "note";
   row.innerHTML = `<td colspan="3">
@@ -111,20 +169,23 @@ function openNote(tr, code) {
       <button class="cancel">Cancel</button>
       ${existing ? '<button class="remove">Remove</button>' : ""}
     </div></td>`;
-  tr.after(row);
+  last.after(row);
   const ta = row.querySelector("textarea"); ta.focus();
   const close = () => row.remove();
   const save = () => {
     const text = ta.value.trim();
     if (!text) return close();
-    const line = tr.dataset.side === "old" ? `${tr.dataset.line} (deleted line)` : tr.dataset.line;
-    notes.set(key, { path: tr.dataset.path, line, code, text });
-    tr.classList.add("has-note");
+    notes.set(key, { path: rows[0].dataset.path, line: spanOf(rows), code: codeOf(rows), text });
+    for (const r of rows) r.classList.add("has-note");
     close(); tally();
   };
   row.querySelector(".save").onclick = save;
   row.querySelector(".cancel").onclick = close;
-  row.querySelector(".remove")?.addEventListener("click", () => { notes.delete(key); tr.classList.remove("has-note"); close(); tally(); });
+  row.querySelector(".remove")?.addEventListener("click", () => {
+    notes.delete(key);
+    for (const r of rows) r.classList.remove("has-note");
+    close(); tally();
+  });
   ta.addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) save(); if (e.key === "Escape") close(); });
 }
 

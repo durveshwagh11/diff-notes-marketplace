@@ -26,7 +26,7 @@ The user wants to look at the changes in the working tree and leave line-level n
    If the output says `No comments.`, tell the user and stop.
 
 3. For each comment, in file order:
-   - Re-read the surrounding code before changing anything; the line number refers to the *new* side of the diff.
+   - Re-read the surrounding code before changing anything; the line number (or `12-18` range) refers to the *new* side of the diff.
    - If the comment is a question, answer it briefly. Only change code if the answer implies a change.
    - If the comment asks for a change, make it with a minimal edit.
    - If you disagree, say so and explain in one or two sentences rather than silently ignoring it.
