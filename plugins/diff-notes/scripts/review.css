@@ -1,0 +1,223 @@
+:root {
+  --bg: #fbfbf9;
+  --ink: #1e1f1c;
+  --muted: #6f7268;
+  --rule: #e2e2dc;
+  --add: #e6f4e8;
+  --add-ink: #1f6b33;
+  --del: #fbe7e6;
+  --del-ink: #9a2f2a;
+  --note: #fff5cc;
+  --note-ink: #5b4a00;
+  --accent: #2456d9;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16171a;
+    --ink: #e8e8e4;
+    --muted: #8b8e86;
+    --rule: #2c2e33;
+    --add: #16301c;
+    --add-ink: #7fd191;
+    --del: #3a1c1b;
+    --del-ink: #f0958f;
+    --note: #3b3410;
+    --note-ink: #ffe38a;
+    --accent: #7aa2ff;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font:
+    14px/1.45 system-ui,
+    sans-serif;
+}
+header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule);
+}
+header h1 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+header .meta {
+  color: var(--muted);
+}
+header .spacer {
+  flex: 1;
+}
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+}
+p.hint {
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+.file {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.file > .path {
+  padding: 8px 12px;
+  font: 13px var(--mono);
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  gap: 10px;
+}
+.file > .path .count {
+  color: var(--muted);
+  margin-left: auto;
+  font-family: system-ui, sans-serif;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 12.5px/1.6 var(--mono);
+}
+td {
+  padding: 0 8px;
+  vertical-align: top;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+td.n {
+  width: 44px;
+  text-align: right;
+  color: var(--muted);
+  user-select: none;
+}
+tr.add td {
+  background: var(--add);
+}
+tr.add td.n {
+  color: var(--add-ink);
+}
+tr.del td {
+  background: var(--del);
+}
+tr.del td.n {
+  color: var(--del-ink);
+}
+tr.hunk td {
+  color: var(--muted);
+  background: transparent;
+  padding: 4px 8px;
+  border-top: 1px solid var(--rule);
+}
+tr.line:hover td.code {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+  cursor: pointer;
+}
+tr.line.sel td {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+#menu {
+  position: fixed;
+  z-index: 10;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+#menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--ink);
+  font:
+    13px system-ui,
+    sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+#menu button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+tr.line.has-note td.n {
+  border-left: 3px solid var(--note-ink);
+}
+tr.note td {
+  padding: 8px 8px 8px 52px;
+  background: var(--note);
+  color: var(--note-ink);
+  font:
+    13px system-ui,
+    sans-serif;
+}
+.note textarea {
+  width: 100%;
+  min-height: 64px;
+  font: inherit;
+  padding: 8px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  resize: vertical;
+}
+.note .row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  align-items: center;
+}
+.note button {
+  font: inherit;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+.note .saved {
+  white-space: pre-wrap;
+}
+.note .saved + .row {
+  margin-top: 8px;
+}
+kbd {
+  font: 11px var(--mono);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0 4px;
+}

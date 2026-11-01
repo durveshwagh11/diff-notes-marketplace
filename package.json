@@ -1,0 +1,17 @@
+{
+  "name": "diff-notes-marketplace",
+  "private": true,
+  "description": "Dev tooling only. The diff-notes plugin itself has no npm dependencies.",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test plugins/diff-notes/scripts/diff.test.mjs",
+    "check": "npm run format:check && npm test"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
